@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VirtualDJ Starter Clone</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: #1a1a1a;
+      font-family: 'Tahoma', 'Arial', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* Главный корпус (Металлик) */
+    .vdj-console {
+      width: 1280px;
+      background: linear-gradient(180deg, #5b5f66 0%, #3a3c42 100%);
+      border: 3px solid #222;
+      border-radius: 10px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 2px 2px rgba(255,255,255,0.4);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ВЕРХНИЙ БЛОК: Экраны и Осциллограммы */
+    .top-displays {
+      display: flex;
+      gap: 15px;
+      background: #111;
+      border-radius: 6px;
+      padding: 10px;
+      border: 2px solid #000;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.8), 0 1px 1px rgba(255,255,255,0.2);
+    }
+
+    .display-panel {
+      flex: 1;
+      background: #050505;
+      border: 1px solid #222;
+      border-radius: 4px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .track-info-bar {
+      height: 30px;
+      background: linear-gradient(180deg, #222, #111);
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
+    }
+
+    .track-title {
+      color: #fff;
+      font-size: 14px;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 300px;
+    }
+
+    .time-display {
+      color: #00ff00;
+      font-family: monospace;
+      font-size: 16px;
+      text-shadow: 0 0 5px #00ff00;
+    }
+
+    .wave-container {
+      height: 70px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    .wave-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .wave-center-line {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 2px;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.7);
+      box-shadow: 0 0 5px #fff;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    /* ОСНОВНОЙ РАБОЧИЙ БЛОК */
+    .main-workspace {
+      display: flex;
+      gap: 15px;
+      height: 500px;
+    }
+
+    /* ДЕКИ */
+    .deck {
+      flex: 1;
+      background: linear-gradient(135deg, #444952 0%, #2b2e33 100%);
+      border: 2px solid #222;
+      border-radius: 8px;
+      box-shadow: inset 0 2px 5px rgba(255,255,255,0.1);
+      display: flex;
+      padding: 15px;
+      position: relative;
+    }
+
+    /* Левая дека - джог слева, питч справа. Правая - наоборот. */
+    .deck-a { flex-direction: row; }
+    .deck-b { flex-direction: row-reverse; }
+
+    .deck-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Цветовые акценты Starter */
+    .deck-a .theme-color { color: #0088ff; }
+    .deck-b .theme-color { color: #ff3333; }
+    .deck-a .jog-ring { border-color: #0088ff; box-shadow: 0 0 15px rgba(0,136,255,0.4); }
+    .deck-b .jog-ring { border-color: #ff3333; box-shadow: 0 0 15px rgba(255,51,51,0.4); }
+
+    /* Джог (CDJ Platter) */
+    .platter-container {
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: #111;
+      border: 2px solid #000;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.6), inset 0 2px 8px rgba(255,255,255,0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .jog-wheel {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: conic-gradient(#333, #666, #333, #666, #333);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.1s linear;
+    }
+
+    .jog-wheel.spinning {
+      animation: spin 1.8s linear infinite;
+    }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .jog-ring {
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      border: 4px solid;
+      background: radial-gradient(circle, #222 40%, #111 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .jog-marker {
+      position: absolute;
+      top: 5px;
+      width: 8px;
+      height: 25px;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 0 5px #fff;
+    }
+
+    .jog-center {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(180deg, #999, #555);
+      border-radius: 50%;
+      border: 2px solid #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      font-size: 24px;
+      text-shadow: 0 1px 1px rgba(255,255,255,0.5);
+      color: #222;
+    }
+
+    /* Кнопки управления (Play, Cue) */
+    .transport-controls {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .hw-btn {
+      width: 70px;
+      height: 50px;
+      border-radius: 6px;
+      border: 1px solid #111;
+      background: linear-gradient(180deg, #555, #222);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.5), inset 0 2px 2px rgba(255,255,255,0.2);
+      color: #eee;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .hw-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 2px 5px rgba(0,0,0,0.8);
+    }
+
+    .btn-play.active {
+      background: linear-gradient(180deg, #00aa00, #004400);
+      box-shadow: 0 0 15px #00aa00, inset 0 2px 2px rgba(255,255,255,0.4);
+      color: #fff;
+    }
+
+    .deck-a .btn-cue { background: linear-gradient(180deg, #0066cc, #002255); }
+    .deck-b .btn-cue { background: linear-gradient(180deg, #cc0000, #550000); }
+
+    /* Питч слайдер */
+    .pitch-fader-container {
+      width: 60px;
+      background: #2a2c30;
+      border: 2px solid #111;
+      border-radius: 4px;
+      box-shadow: inset 0 5px 10px rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 15px 0;
+      position: relative;
+    }
+
+    .pitch-scale {
+      position: absolute;
+      height: 80%;
+      width: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      color: #777;
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    .pitch-fader {
+      -webkit-appearance: none;
+      width: 350px; /* Длина из-за поворота */
+      height: 4px;
+      background: #000;
+      outline: none;
+      transform: rotate(90deg);
+      margin-top: 170px; /* Компенсация поворота */
+    }
+
+    .pitch-fader::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 40px;
+      background: linear-gradient(90deg, #777, #ccc, #777);
+      border: 1px solid #111;
+      border-radius: 2px;
+      cursor: pointer;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.5);
+    }
+
+    /* Загрузка файла */
+    .load-track-btn {
+      margin-top: 10px;
+      padding: 5px 15px;
+      background: #111;
+      color: #aaa;
+      border: 1px solid #333;
+      border-radius: 3px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    
+    .file-input { display: none; }
+
+    /* МИКШЕРНЫЙ ПУЛЬТ (ЦЕНТР) */
+    .mixer {
+      width: 320px;
+      background: linear-gradient(180deg, #33363b 0%, #1e1f22 100%);
+      border: 2px solid #111;
+      border-radius: 8px;
+      box-shadow: inset 0 2px 5px rgba(255,255,255,0.1), 0 10px 20px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+    }
+
+    .mixer-eq-section {
+      display: flex;
+      justify-content: space-between;
+      flex: 1;
+    }
+
+    .mixer-channel {
+      width: 45%;
+      background: #25272b;
+      border: 1px solid #111;
+      border-radius: 4px;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Круглые регуляторы (Knobs) */
+    .knob-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .knob-label {
+      color: #aaa;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .rotary-knob {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 30%, #777, #222);
+      border: 2px solid #000;
+      box-shadow: 0 4px 5px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.3);
+      position: relative;
+      cursor: grab;
+      transform: rotate(0deg);
+    }
+
+    .rotary-knob:active { cursor: grabbing; }
+
+    .knob-pointer {
+      position: absolute;
+      top: 4px;
+      left: 20px;
+      width: 2px;
+      height: 12px;
+      background: #fff;
+      border-radius: 1px;
+      box-shadow: 0 0 3px #fff;
+    }
+
+    .deck-a .knob-pointer { background: #0088ff; box-shadow: 0 0 5px #0088ff; }
+    .deck-b .knob-pointer { background: #ff3333; box-shadow: 0 0 5px #ff3333; }
+
+    /* Вертикальные фейдеры громкости */
+    .vol-fader-container {
+      height: 120px;
+      width: 40px;
+      background: #111;
+      border: 1px solid #000;
+      border-radius: 3px;
+      display: flex;
+      justify-content: center;
+      box-shadow: inset 0 5px 10px rgba(0,0,0,0.8);
+      position: relative;
+    }
+
+    .vol-fader {
+      -webkit-appearance: none;
+      width: 100px;
+      height: 4px;
+      background: transparent;
+      outline: none;
+      transform: rotate(-90deg);
+      margin-top: 55px;
+    }
+
+    .vol-fader::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 30px;
+      height: 20px;
+      background: linear-gradient(90deg, #444, #999, #444);
+      border: 1px solid #000;
+      border-radius: 2px;
+      cursor: pointer;
+      box-shadow: -2px 0 3px rgba(0,0,0,0.5);
+    }
+
+    /* Кроссфейдер */
+    .crossfader-section {
+      height: 80px;
+      margin-top: 15px;
+      background: #25272b;
+      border: 1px solid #111;
+      border-radius: 4px;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    .crossfader-track {
+      width: 100%;
+      height: 30px;
+      background: #111;
+      border: 1px solid #000;
+      border-radius: 3px;
+      box-shadow: inset 0 5px 10px rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+    }
+
+    .crossfader {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: transparent;
+      outline: none;
+    }
+
+    .crossfader::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 25px;
+      height: 40px;
+      background: linear-gradient(180deg, #444, #999, #444);
+      border: 1px solid #000;
+      border-radius: 2px;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <main class="vdj-console">
+    <!-- ЭКРАНЫ И ВОЛНЫ -->
+    <header class="top-displays">
+      <article class="display-panel" id="disp-a">
+        <div class="track-info-bar">
+          <span class="track-title" id="title-a">Load a track...</span>
+          <span class="time-display" id="time-a">00:00</span>
+        </div>
+        <div class="wave-container" id="wave-box-a">
+          <canvas class="wave-canvas" id="canvas-a"></canvas>
+          <div class="wave-center-line"></div>
+        </div>
+      </article>
+
+      <article class="display-panel" id="disp-b">
+        <div class="track-info-bar">
+          <span class="track-title" id="title-b">Load a track...</span>
+          <span class="time-display" id="time-b">00:00</span>
+        </div>
+        <div class="wave-container" id="wave-box-b">
+          <canvas class="wave-canvas" id="canvas-b"></canvas>
+          <div class="wave-center-line"></div>
+        </div>
+      </article>
+    </header>
+
+    <!-- РАБОЧАЯ ЗОНА -->
+    <section class="main-workspace">
+      
+      <!-- ДЕКА А -->
+      <aside class="deck deck-a">
+        <div class="deck-inner">
+          <h2 class="theme-color" style="font-size: 18px; margin-bottom: 10px;">DECK A</h2>
+          
+          <div class="platter-container">
+            <div class="jog-wheel" id="jog-a">
+              <div class="jog-ring">
+                <div class="jog-marker"></div>
+                <div class="jog-center">A</div>
+              </div>
+            </div>
+          </div>
+
+          <label class="load-track-btn">
+            LOAD TRACK
+            <input type="file" class="file-input" id="file-a" accept="audio/*">
+          </label>
+
+          <nav class="transport-controls">
+            <button class="hw-btn btn-play" id="play-a">▶ PLAY</button>
+            <button class="hw-btn btn-cue" id="cue-a">CUE</button>
+          </nav>
+        </div>
+
+        <div class="pitch-fader-container">
+          <div class="pitch-scale">
+            <span>-</span>
+            <span>0</span>
+            <span>+</span>
+          </div>
+          <input type="range" class="pitch-fader" id="pitch-a" min="-16" max="16" value="0" step="0.1">
+        </div>
+      </aside>
+
+      <!-- МИКШЕР -->
+      <section class="mixer">
+        <div class="mixer-eq-section">
+          <!-- Канал А -->
+          <div class="mixer-channel deck-a">
+            <div class="knob-container">
+              <span class="knob-label">HIGH</span>
+              <div class="rotary-knob" id="knob-high-a" data-val="0"><div class="knob-pointer"></div></div>
+            </div>
+            <div class="knob-container">
+              <span class="knob-label">MID</span>
+              <div class="rotary-knob" id="knob-mid-a" data-val="0"><div class="knob-pointer"></div></div>
+            </div>
+            <div class="knob-container">
+              <span class="knob-label">LOW</span>
+              <div class="rotary-knob" id="knob-low-a" data-val="0"><div class="knob-pointer"></div></div>
+            </div>
+            
+            <div class="vol-fader-container">
+              <input type="range" class="vol-fader" id="vol-a" min="0" max="1" value="0.8" step="0.01">
+            </div>
+          </div>
+
+          <!-- Канал Б -->
+          <div class="mixer-channel deck-b">
+             <div class="knob-container">
+              <span class="knob-label">HIGH</span>
+              <div class="rotary-knob" id="knob-high-b" data-val="0"><div class="knob-pointer"></div></div>
+            </div>
+            <div class="knob-container">
+              <span class="knob-label">MID</span>
+              <div class="rotary-knob" id="knob-mid-b" data-val="0"><div class="knob-pointer"></div></div>
+            </div>
+            <div class="knob-container">
+              <span class="knob-label">LOW</span>
+              <div class="rotary-knob" id="knob-low-b" data-val="0"><div class="knob-pointer"></div></div>
+            </div>
+
+            <div class="vol-fader-container">
+              <input type="range" class="vol-fader" id="vol-b" min="0" max="1" value="0.8" step="0.01">
+            </div>
+          </div>
+        </div>
+
+        <div class="crossfader-section">
+          <div class="crossfader-track">
+            <input type="range" class="crossfader" id="crossfader" min="0" max="1" value="0.5" step="0.01">
+          </div>
+        </div>
+      </section>
+
+      <!-- ДЕКА Б -->
+      <aside class="deck deck-b">
+        <div class="deck-inner">
+          <h2 class="theme-color" style="font-size: 18px; margin-bottom: 10px;">DECK B</h2>
+          
+          <div class="platter-container">
+            <div class="jog-wheel" id="jog-b">
+              <div class="jog-ring">
+                <div class="jog-marker"></div>
+                <div class="jog-center">B</div>
+              </div>
+            </div>
+          </div>
+
+          <label class="load-track-btn">
+            LOAD TRACK
+            <input type="file" class="file-input" id="file-b" accept="audio/*">
+          </label>
+
+          <nav class="transport-controls">
+            <button class="hw-btn btn-play" id="play-b">▶ PLAY</button>
+            <button class="hw-btn btn-cue" id="cue-b">CUE</button>
+          </nav>
+        </div>
+
+        <div class="pitch-fader-container">
+          <div class="pitch-scale">
+            <span>-</span>
+            <span>0</span>
+            <span>+</span>
+          </div>
+          <input type="range" class="pitch-fader" id="pitch-b" min="-16" max="16" value="0" step="0.1">
+        </div>
+      </aside>
+
+    </section>
+  </main>
+
+  <script>
+    let audioCtx = null;
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    // Форматирование времени (ММ:СС)
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return "00:00";
+      const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+      const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    class VirtualDeck {
+      constructor(id, waveColor) {
+        this.id = id;
+        this.waveColor = waveColor;
+        this.audioBuffer = null;
+        this.peaks = null;
+        
+        // DOM Элементы
+        this.fileInput = document.getElementById(`file-${id}`);
+        this.titleDisp = document.getElementById(`title-${id}`);
+        this.timeDisp = document.getElementById(`time-${id}`);
+        this.jog = document.getElementById(`jog-${id}`);
+        
+        this.canvas = document.getElementById(`canvas-${id}`);
+        this.ctx = this.canvas.getContext('2d');
+        this.waveBox = document.getElementById(`wave-box-${id}`);
+        
+        this.btnPlay = document.getElementById(`play-${id}`);
+        this.btnCue = document.getElementById(`cue-${id}`);
+        this.pitch = document.getElementById(`pitch-${id}`);
+        this.vol = document.getElementById(`vol-${id}`);
+        
+        // Эквалайзер (Крутилки)
+        this.knobHigh = document.getElementById(`knob-high-${id}`);
+        this.knobMid = document.getElementById(`knob-mid-${id}`);
+        this.knobLow = document.getElementById(`knob-low-${id}`);
+        
+        this.audio = new Audio();
+        this.isNodesInitialized = false;
+        
+        this.resizeCanvas();
+        this.initEvents();
+        this.initKnobLogic(this.knobHigh, 'high');
+        this.initKnobLogic(this.knobMid, 'mid');
+        this.initKnobLogic(this.knobLow, 'low');
+      }
+
+      resizeCanvas() {
+        this.canvas.width = this.waveBox.clientWidth;
+        this.canvas.height = this.waveBox.clientHeight;
+      }
+
+      setupAudioNodes() {
+        if (this.isNodesInitialized) return;
+        this.sourceNode = audioCtx.createMediaElementSource(this.audio);
+        
+        this.filterLow = audioCtx.createBiquadFilter();
+        this.filterLow.type = 'lowshelf';
+        this.filterLow.frequency.value = 250;
+        
+        this.filterMid = audioCtx.createBiquadFilter();
+        this.filterMid.type = 'peaking';
+        this.filterMid.frequency.value = 1000;
+        
+        this.filterHigh = audioCtx.createBiquadFilter();
+        this.filterHigh.type = 'highshelf';
+        this.filterHigh.frequency.value = 4000;
+        
+        this.volumeGain = audioCtx.createGain();
+        this.crossfaderGain = audioCtx.createGain();
+        
+        // Routing
+        this.sourceNode.connect(this.filterLow).connect(this.filterMid)
+            .connect(this.filterHigh).connect(this.volumeGain)
+            .connect(this.crossfaderGain).connect(audioCtx.destination);
+            
+        this.isNodesInitialized = true;
+      }
+
+      initEvents() {
+        // Загрузка файла
+        this.fileInput.addEventListener('change', async (e) => {
+          initAudioContext();
+          this.setupAudioNodes();
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          this.titleDisp.textContent = file.name.replace(/\.[^/.]+$/, "");
+          this.audio.src = URL.createObjectURL(file);
+          
+          const arrayBuffer = await file.arrayBuffer();
+          this.audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+          this.calcPeaks();
+        });
+
+        // Play
+        this.btnPlay.addEventListener('click', () => {
+          initAudioContext();
+          this.setupAudioNodes();
+          if (this.audio.paused && this.audio.src) {
+            this.audio.play();
+            this.jog.classList.add('spinning');
+            this.btnPlay.classList.add('active');
+          } else {
+            this.audio.pause();
+            this.jog.classList.remove('spinning');
+            this.btnPlay.classList.remove('active');
+          }
+        });
+
+        // Cue
+        this.btnCue.addEventListener('click', () => {
+          this.audio.pause();
+          this.audio.currentTime = 0;
+          this.jog.classList.remove('spinning');
+          this.btnPlay.classList.remove('active');
+        });
+
+        // Pitch
+        this.pitch.addEventListener('input', (e) => {
+          this.audio.playbackRate = 1 + (parseFloat(e.target.value) / 100);
+        });
+
+        // Volume
+        this.vol.addEventListener('input', (e) => {
+          if (this.volumeGain) this.volumeGain.gain.value = parseFloat(e.target.value);
+        });
+
+        // Time Update
+        this.audio.addEventListener('timeupdate', () => {
+          this.timeDisp.textContent = formatTime(this.audio.currentTime);
+        });
+
+        // Waveform click
+        this.waveBox.addEventListener('click', (e) => {
+          if (!this.audio.duration) return;
+          const rect = this.waveBox.getBoundingClientRect();
+          this.audio.currentTime = ((e.clientX - rect.left) / rect.width) * this.audio.duration;
+        });
+      }
+
+      // Логика вращения крутилок (Knobs)
+      initKnobLogic(knobElement, type) {
+        let isDragging = false;
+        let startY = 0;
+        let currentAngle = 0;
+
+        knobElement.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          startY = e.clientY;
+          document.body.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+          const delta = startY - e.clientY;
+          currentAngle += delta * 1.5; // Чувствительность
+          
+          // Ограничение вращения от -135 до 135 градусов
+          currentAngle = Math.max(-135, Math.min(135, currentAngle));
+          knobElement.style.transform = `rotate(${currentAngle}deg)`;
+          startY = e.clientY;
+
+          // Маппинг угла (-135...135) в дБ (-24...12)
+          if (this.isNodesInitialized) {
+            const normalized = (currentAngle + 135) / 270; // 0.0 to 1.0
+            const dbVal = -24 + (normalized * 36); 
+            
+            if (type === 'high') this.filterHigh.gain.value = dbVal;
+            if (type === 'mid') this.filterMid.gain.value = dbVal;
+            if (type === 'low') this.filterLow.gain.value = dbVal;
+          }
+        });
+
+        window.addEventListener('mouseup', () => {
+          isDragging = false;
+          document.body.style.cursor = 'default';
+        });
+      }
+
+      calcPeaks() {
+        const data = this.audioBuffer.getChannelData(0);
+        const resolution = 600; // Количество полос
+        const step = Math.floor(data.length / resolution);
+        this.peaks = new Float32Array(resolution);
+        
+        for (let i = 0; i < resolution; i++) {
+          let sum = 0;
+          for (let j = 0; j < step; j += 15) {
+            sum += Math.abs(data[i * step + j] || 0);
+          }
+          this.peaks[i] = sum / (step / 15);
+        }
+      }
+
+      drawWave() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        this.ctx.clearRect(0, 0, w, h);
+        
+        if (!this.peaks) {
+          this.ctx.fillStyle = '#333';
+          this.ctx.fillRect(0, h/2 - 1, w, 2);
+          return;
+        }
+        
+        const progress = this.audio.duration ? this.audio.currentTime / this.audio.duration : 0;
+        const totalBars = this.peaks.length;
+        const barsOnScreen = 150;
+        const barWidth = w / barsOnScreen;
+        
+        // Смещение волны так, чтобы текущая позиция была ровно по центру (w/2)
+        const currentPeakIdx = progress * totalBars;
+        const offsetIdx = currentPeakIdx - (barsOnScreen / 2);
+        
+        this.ctx.fillStyle = this.waveColor;
+        
+        for (let i = 0; i < barsOnScreen; i++) {
+          const peakIdx = Math.floor(offsetIdx + i);
+          
+          if (peakIdx >= 0 && peakIdx < totalBars) {
+            const val = this.peaks[peakIdx];
+            const barHeight = Math.max(2, val * h * 2.5);
+            this.ctx.fillRect(i * barWidth, (h - barHeight) / 2, barWidth - 1, barHeight);
+          }
+        }
+      }
+    }
+
+    // Инициализация
+    const deckA = new VirtualDeck('a', '#0088ff');
+    const deckB = new VirtualDeck('b', '#ff3333');
+
+    // Кроссфейдер (Equal Power)
+    const crossfader = document.getElementById('crossfader');
+    crossfader.addEventListener('input', () => {
+      const x = parseFloat(crossfader.value);
+      if (deckA.crossfaderGain) deckA.crossfaderGain.gain.value = Math.cos(x * Math.PI / 2);
+      if (deckB.crossfaderGain) deckB.crossfaderGain.gain.value = Math.sin(x * Math.PI / 2);
+    });
+
+    // Анимационный цикл
+    function loop() {
+      deckA.drawWave();
+      deckB.drawWave();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
